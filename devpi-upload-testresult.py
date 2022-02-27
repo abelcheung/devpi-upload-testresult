@@ -8,14 +8,16 @@ import argparse
 import json
 import sys
 from contextlib import closing
-from typing import IO
+from typing import IO, TYPE_CHECKING
 
 import devpi.main as _main
 import devpi.test as _test
 import more_itertools
 import py
 from devpi_common.url import URL
-from devpi_common.viewhelp import ViewLink
+
+if TYPE_CHECKING:
+    from devpi_common.viewhelp import ViewLink
 
 
 def main():
@@ -89,11 +91,15 @@ def upload_result(hub: _main.Hub, sdist: ViewLink, *report_fh: IO[str]):
         try:
             jsondata = json.load(f)
         except json.JSONDecodeError:
-            hub.error(f'Report file at argument index {idx} is not JSON, skipping')
+            hub.error(f'Report file at argument index {idx} is not JSON, skip processing')
             f.close()
             continue
         else:
             f.close()
+            if 'toxversion' not in jsondata:
+                hub.error(f'Report file at argument index {idx} '
+                    'is not produced by tox, skip processing')
+                continue
         hub.info(f'Attempting to post report file at argument index {idx}...')
         _test.post_tox_json_report(hub, url.url_nofrag, jsondata)
 
